@@ -1,0 +1,202 @@
+import express from 'express';
+
+const app = express();
+const port = process.env.PORT || 3000;
+
+const scoreColor = v => v >= 80 ? '#16a34a' : v >= 60 ? '#2563eb' : v >= 40 ? '#f97316' : '#dc2626';
+const exposureColor = v => v <= 20 ? '#16a34a' : v <= 40 ? '#2563eb' : v <= 60 ? '#f97316' : '#dc2626';
+const scoreLabel = v => v >= 80 ? 'Strong' : v >= 60 ? 'Moderate' : v >= 40 ? 'Fragile' : 'Critical';
+const exposureLabel = v => v <= 20 ? 'Low Exposure' : v <= 40 ? 'Moderate Exposure' : v <= 60 ? 'High Exposure' : 'Severe Exposure';
+
+function gauge(title, value, exposure = false) {
+  const color = exposure ? exposureColor(value) : scoreColor(value);
+  const label = exposure ? exposureLabel(value) : scoreLabel(value);
+  const rotation = -90 + value * 1.8;
+
+  return `
+  <div class="card gauge-card">
+    <div class="gauge-title">${title}</div>
+    <div class="gauge-shell">
+      <div class="gauge-bg">
+        <div class="gauge-inner"></div>
+        <div class="needle" style="transform:rotate(${rotation}deg)"></div>
+        <div class="needle-center"></div>
+        <div class="gauge-value" style="color:${color}">${value}%</div>
+        <div class="gauge-label" style="color:${color}">${label}</div>
+      </div>
+    </div>
+    <div class="scale"><span>0%</span><span>100%</span></div>
+  </div>`;
+}
+
+function render(req, res) {
+  const recordId = req.query.recordId || req.params.recordId || '';
+
+  res.send(`<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Programme Operational Governance Dashboard</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f3f6fb;font-family:Arial,sans-serif;color:#0f172a;padding:18px}
+.container{max-width:1550px;margin:auto}
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:18px;box-shadow:0 1px 8px rgba(15,23,42,.05)}
+.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px}
+.eyebrow{font-size:13px;font-weight:900;color:#475569}
+.title{font-size:38px;font-weight:900;margin-top:6px}
+.subtitle{margin-top:8px;color:#64748b}
+.meta{display:flex;gap:18px;flex-wrap:wrap;margin-top:12px;font-size:13px;font-weight:800}
+.grid5,.grid3,.grid2{display:grid;gap:14px;margin-bottom:16px}
+.grid5{grid-template-columns:repeat(5,1fr)}
+.grid3{grid-template-columns:repeat(3,1fr)}
+.grid2{grid-template-columns:1fr 1fr}
+.gauge-card{min-height:210px}
+.gauge-title,.section-title{font-size:15px;font-weight:900;margin-bottom:10px}
+.section-title{font-size:20px}
+.gauge-shell{height:125px;display:flex;align-items:flex-end;justify-content:center;overflow:hidden}
+.gauge-bg{position:relative;width:220px;height:110px;border-radius:220px 220px 0 0;background:conic-gradient(from 270deg,#dc2626 0 45deg,#f97316 45deg 72deg,#2563eb 72deg 144deg,#16a34a 144deg 180deg,#e5e7eb 180deg)}
+.gauge-inner{position:absolute;left:35px;top:35px;width:150px;height:75px;background:#fff;border-radius:150px 150px 0 0}
+.needle{position:absolute;left:108px;bottom:0;width:4px;height:82px;background:#111827;transform-origin:bottom center;border-radius:6px;z-index:5}
+.needle-center{position:absolute;left:98px;bottom:-11px;width:24px;height:24px;border-radius:50%;background:#111827;border:5px solid #fff;z-index:6}
+.gauge-value{position:absolute;left:0;right:0;bottom:28px;text-align:center;font-size:34px;font-weight:900;z-index:7}
+.gauge-label{position:absolute;left:0;right:0;bottom:9px;text-align:center;font-size:12px;font-weight:900;z-index:7}
+.scale{display:flex;justify-content:space-between;color:#64748b;font-size:12px;font-weight:800}
+.assessment{background:linear-gradient(135deg,#f8fafc,#eff6ff)}
+.mini{background:#fff;border:1px solid #dbeafe;border-radius:10px;padding:12px}
+.mini span{display:block;color:#64748b;font-size:12px;font-weight:800}
+.metric{font-size:32px;font-weight:900;margin-top:6px}
+.interpret{margin-top:14px;background:#fff;border-left:5px solid #2563eb;border-radius:10px;padding:14px}
+.tag{display:inline-block;background:#f8fafc;border:1px solid #e2e8f0;border-radius:999px;padding:6px 10px;margin:4px;font-size:12px;font-weight:800}
+.metric-row{display:grid;grid-template-columns:240px 1fr 55px;gap:12px;align-items:center;margin:12px 0}
+.track{height:10px;background:#e5e7eb;border-radius:999px;overflow:hidden}.fill{height:100%;border-radius:999px}
+.box{border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:10px;background:#fff}
+.box h4{margin:0 0 6px;font-size:13px}.box p{margin:0;color:#475569;font-size:13px;line-height:1.45}
+.chain{display:grid;grid-template-columns:1fr 32px 1fr 32px 1fr 32px 1fr;gap:8px;align-items:center}
+.node{background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:12px}.node.active{background:#dbeafe}.arrow{text-align:center;font-size:24px;color:#2563eb;font-weight:900}
+.table{width:100%;border-collapse:collapse;font-size:13px}.table th,.table td{border:1px solid #e2e8f0;padding:10px}.table th{background:#f8fafc}
+.status{padding:5px 9px;border-radius:999px;font-weight:900}.strong{background:#dcfce7;color:#166534}.moderate{background:#dbeafe;color:#1d4ed8}.fragile{background:#ffedd5;color:#9a3412}
+.exposure{background:#fff7ed;border:1px solid #fed7aa}
+.exposure-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.exposure-item{background:#fff;border:1px solid #fed7aa;border-radius:10px;padding:12px}.exposure-item b{display:block;color:#64748b;font-size:12px}.exposure-item strong{display:block;font-size:22px;margin-top:6px}
+@media(max-width:1150px){.grid5,.grid3,.grid2,.chain,.exposure-grid{grid-template-columns:1fr}.arrow{display:none}.header{display:block}}
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="card header">
+<div>
+<div class="eyebrow">⚙️ Programme Operational Governance Dashboard</div>
+<div class="title">National Agroecology Programme</div>
+<div class="subtitle">Operational Delivery • Escalation Architecture • Execution Continuity</div>
+<div class="meta"><span>📦 Programme</span><span>🇬🇭 Ghana</span><span>🏛️ MoFA</span><span>📄 PRG-1</span>${recordId ? `<span>🔗 ${recordId}</span>` : ''}</div>
+</div>
+<div class="meta"><span>📅 Updated 5/23/2026</span></div>
+</div>
+
+<div class="grid5">
+${gauge('Programme Operational Governance Score',72)}
+${gauge('Operational Delivery Stability',68)}
+${gauge('Monitoring Reliability',64)}
+${gauge('Escalation Readiness',58)}
+${gauge('Fragmentation Exposure',36,true)}
+</div>
+
+<div class="card assessment">
+<div class="section-title">⚙️ Overall Programme-Level Operational Governance Assessment</div>
+<div class="grid3">
+<div class="mini"><span>⚙️ Programme Operational Governance</span><div class="metric" style="color:#2563eb">72%</div>Moderate</div>
+<div class="mini"><span>📡 Operational Continuity</span><div class="metric" style="color:#16a34a">Stable</div>Execution Stable</div>
+<div class="mini"><span>⚠️ Operational Exposure</span><div class="metric" style="color:#f97316">14%</div>Escalation Gap</div>
+</div>
+<div class="interpret"><b>⚙️ Operationally Stable Programme System</b><p>The programme demonstrates stable operational continuity but escalation closure mechanisms remain partially uneven across action delivery chains.</p><span class="tag">🟢 Stable execution</span><span class="tag">🔵 Monitoring continuity</span><span class="tag">🟠 Escalation exposure</span><span class="tag">📄 Traceable governance</span></div>
+</div>
+
+<div class="grid2">
+<div class="card">
+<div class="section-title">Programme Operational Governance Components</div>
+<div class="metric-row"><div><b>C1 Programme Alignment</b></div><div class="track"><div class="fill" style="width:83%;background:#16a34a"></div></div><div>83%</div></div>
+<div class="metric-row"><div><b>C2 Instrument Embedding</b></div><div class="track"><div class="fill" style="width:80%;background:#16a34a"></div></div><div>80%</div></div>
+<div class="metric-row"><div><b>C3 Resource Governance</b></div><div class="track"><div class="fill" style="width:71%;background:#2563eb"></div></div><div>71%</div></div>
+<div class="metric-row"><div><b>C4 Monitoring System</b></div><div class="track"><div class="fill" style="width:64%;background:#2563eb"></div></div><div>64%</div></div>
+<div class="metric-row"><div><b>C5 Trigger & Escalation</b></div><div class="track"><div class="fill" style="width:58%;background:#f97316"></div></div><div>58%</div></div>
+<div class="metric-row"><div><b>C6 Traceability</b></div><div class="track"><div class="fill" style="width:82%;background:#16a34a"></div></div><div>82%</div></div>
+<div class="box" style="background:#fff1f2;border-color:#fecaca;color:#b91c1c"><b>Weakest Operational Layer — C5 Trigger & Escalation — 58%</b></div>
+</div>
+
+<div class="card">
+<div class="section-title">Operational Governance Stability Layer</div>
+<div class="box"><h4>Execution Stability</h4><p>Operational delivery remains stable across programme transition layers.</p></div>
+<div class="box"><h4>Monitoring Exposure</h4><p>Monitoring continuity remains partially dependent on programme reporting discipline.</p></div>
+<div class="box"><h4>Escalation Risk</h4><p>Escalation closure protocols remain unevenly activated.</p></div>
+<div class="box"><h4>Traceability Integrity</h4><p>Operational records and closure evidence remain broadly auditable.</p></div>
+</div>
+</div>
+
+<div class="grid3">
+<div class="card">
+<div class="section-title">Operational Mapping Chain</div>
+<div class="chain">
+<div class="node"><b>🏛️ National Strategy</b></div>
+<div class="arrow">➜</div>
+<div class="node"><b>📄 Policy Layer</b></div>
+<div class="arrow">➜</div>
+<div class="node active"><b>📦 Programme Layer</b></div>
+<div class="arrow">➜</div>
+<div class="node"><b>⚙️ Action Layer</b></div>
+</div>
+</div>
+
+<div class="card">
+${gauge('Governance Certification Readiness',76)}
+</div>
+
+<div class="card">
+<div class="section-title">Escalation Signals</div>
+<div class="box"><h4>Strongest Escalation Closure</h4><p>ACT-2 Circular Food System — 74%</p></div>
+<div class="box"><h4>Weakest Escalation Closure</h4><p>ACT-5 Rural Water Access — 40%</p></div>
+<span class="tag">🟠 Escalation propagation risk</span>
+</div>
+</div>
+
+<div class="card exposure">
+<div class="section-title">⚠️ Operational Governance Exposure</div>
+<div class="exposure-grid">
+<div class="exposure-item"><b>Monitoring Dependency</b><strong style="color:#2563eb">Moderate</strong></div>
+<div class="exposure-item"><b>Escalation Bottleneck</b><strong style="color:#f97316">Medium Risk</strong></div>
+<div class="exposure-item"><b>Operational Continuity</b><strong style="color:#16a34a">Stable</strong></div>
+<div class="exposure-item"><b>Reporting Stability</b><strong style="color:#2563eb">Moderate</strong></div>
+</div>
+<span class="tag">📡 Escalation layer gap</span><span class="tag">📄 Monitoring dependency</span>
+</div>
+
+<div class="grid2">
+<div class="card">
+<div class="section-title">Operational Action Benchmarking</div>
+<table class="table">
+<tr><th>#</th><th>Action</th><th>Operational Governance</th><th>Status</th></tr>
+<tr><td>1</td><td>ACT-1 Agroecology Pilot</td><td>78%</td><td><span class="status moderate">Moderate</span></td></tr>
+<tr><td>2</td><td>ACT-2 Circular Food System</td><td>81%</td><td><span class="status strong">Strong</span></td></tr>
+<tr><td>3</td><td>ACT-5 Nutrition & Youth</td><td>55%</td><td><span class="status fragile">Fragile</span></td></tr>
+</table>
+</div>
+
+<div class="card">
+<div class="section-title">Operational Governance Synthesis</div>
+<div class="box"><h4>Executive Summary</h4><p>The programme demonstrates operational coherence with moderate escalation discipline and strong documentary traceability.</p></div>
+<div class="box"><h4>Certification Outlook</h4><p>Governance certification remains feasible subject to stronger escalation closure protocols.</p></div>
+<div class="box"><h4>Reviewer Focus</h4><p>Review operational continuity, monitoring evidence sufficiency and operational closure mechanisms.</p></div>
+<div class="box"><h4>Key Operational Gaps</h4><p>⚠️ Weak escalation activation<br>⚠️ Monitoring propagation gaps<br>⚠️ Uneven closure traceability</p></div>
+</div>
+</div>
+
+</div>
+</body>
+</html>`);
+}
+
+app.get('/', render);
+app.get('/api', render);
+app.get('/api/:recordId', render);
+app.listen(port, () => console.log(`Programme Operational Governance Dashboard running on ${port}`));
